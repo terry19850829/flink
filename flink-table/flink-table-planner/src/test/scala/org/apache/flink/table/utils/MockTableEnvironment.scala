@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.table.api.{Table, TableConfig, TableEnvironment}
 import org.apache.flink.table.catalog.Catalog
 import org.apache.flink.table.descriptors.{ConnectTableDescriptor, ConnectorDescriptor}
-import org.apache.flink.table.functions.ScalarFunction
+import org.apache.flink.table.functions.{ScalarFunction, UserDefinedFunction}
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.sources.TableSource
 import java.util.Optional
@@ -91,6 +91,8 @@ class MockTableEnvironment extends TableEnvironment {
 
   override def useDatabase(databaseName: String): Unit = ???
 
+  override def insertInto(sinkPath: String, table: Table): Unit = ???
+
   override def insertInto(
     table: Table,
     sinkPath: String,
@@ -101,4 +103,48 @@ class MockTableEnvironment extends TableEnvironment {
   override def loadModule(moduleName: String, module: Module): Unit = ???
 
   override def unloadModule(moduleName: String): Unit = ???
+
+  override def createTemporaryView(
+    path: String,
+    view: Table): Unit = ???
+
+  override def listTemporaryTables(): Array[String] = ???
+
+  override def listTemporaryViews(): Array[String] = ???
+
+  override def from(path: String): Table = ???
+
+  override def dropTemporaryTable(path: String): Boolean = ???
+
+  override def dropTemporaryView(path: String): Boolean = ???
+
+  override def createTemporarySystemFunction(
+    name: String,
+    functionClass: Class[_ <: UserDefinedFunction]): Unit = ???
+
+  override def createTemporarySystemFunction(
+    name: String,
+    functionInstance: UserDefinedFunction): Unit = ???
+
+  override def dropTemporarySystemFunction(name: String): Boolean = ???
+
+  override def createFunction(
+    path: String,
+    functionClass: Class[_ <: UserDefinedFunction]): Unit = ???
+
+  override def createFunction(
+    path: String,
+    functionClass: Class[_ <: UserDefinedFunction], ignoreIfExists: Boolean): Unit = ???
+
+  override def dropFunction(path: String): Boolean = ???
+
+  override def createTemporaryFunction(
+    path: String,
+    functionClass: Class[_ <: UserDefinedFunction]): Unit = ???
+
+  override def createTemporaryFunction(
+    path: String,
+    functionInstance: UserDefinedFunction): Unit = ???
+
+  override def dropTemporaryFunction(path: String): Boolean = ???
 }

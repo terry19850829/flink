@@ -147,6 +147,12 @@ object FlinkRuleSets {
     * RuleSet to do rewrite on FlinkLogicalRel
     */
   val LOGICAL_REWRITE_RULES: RuleSet = RuleSets.ofList(
+    // Rule that splits python ScalarFunctions from join conditions
+    SplitPythonConditionFromJoinRule.INSTANCE,
+    // Rule that splits python ScalarFunctions from
+    // java/scala ScalarFunctions in correlate conditions
+    SplitPythonConditionFromCorrelateRule.INSTANCE,
+    CalcMergeRule.INSTANCE,
     PythonCalcSplitRule.SPLIT_CONDITION,
     PythonCalcSplitRule.SPLIT_PROJECT,
     PythonCalcSplitRule.PUSH_CONDITION,
@@ -190,6 +196,7 @@ object FlinkRuleSets {
     DataSetAggregateRule.INSTANCE,
     DataSetDistinctRule.INSTANCE,
     DataSetCalcRule.INSTANCE,
+    DataSetPythonCalcRule.INSTANCE,
     DataSetJoinRule.INSTANCE,
     DataSetSingleRowJoinRule.INSTANCE,
     DataSetScanRule.INSTANCE,
@@ -244,7 +251,8 @@ object FlinkRuleSets {
     DataStreamMatchRule.INSTANCE,
     DataStreamTableAggregateRule.INSTANCE,
     DataStreamGroupWindowTableAggregateRule.INSTANCE,
-    DataStreamPythonCalcRule.INSTANCE
+    DataStreamPythonCalcRule.INSTANCE,
+    DataStreamPythonCorrelateRule.INSTANCE
   )
 
   /**

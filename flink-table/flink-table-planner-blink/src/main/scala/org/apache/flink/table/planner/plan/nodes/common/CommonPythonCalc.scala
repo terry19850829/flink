@@ -21,8 +21,10 @@ package org.apache.flink.table.planner.plan.nodes.common
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.flink.api.dag.Transformation
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator
 import org.apache.flink.streaming.api.transformations.OneInputTransformation
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.dataformat.BaseRow
 import org.apache.flink.table.functions.python.{PythonFunction, PythonFunctionInfo, SimplePythonFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -36,8 +38,17 @@ import scala.collection.mutable
 
 trait CommonPythonCalc {
 
+  def loadClass(className: String): Class[_] = {
+    try {
+      Class.forName(className, false, Thread.currentThread.getContextClassLoader)
+    } catch {
+      case ex: ClassNotFoundException => throw new TableException(
+        "The dependency of 'flink-python' is not present on the classpath.", ex)
+    }
+  }
+
   private lazy val convertLiteralToPython = {
-    val clazz = Class.forName("org.apache.flink.api.common.python.PythonBridgeUtils")
+    val clazz = loadClass("org.apache.flink.api.common.python.PythonBridgeUtils")
     clazz.getMethod("convertLiteralToPython", classOf[RexLiteral], classOf[SqlTypeName])
   }
 
@@ -90,19 +101,22 @@ trait CommonPythonCalc {
   }
 
   private def getPythonScalarFunctionOperator(
+      config: Configuration,
       inputRowTypeInfo: BaseRowTypeInfo,
       outputRowTypeInfo: BaseRowTypeInfo,
       udfInputOffsets: Array[Int],
       pythonFunctionInfos: Array[PythonFunctionInfo],
       forwardedFields: Array[Int])= {
-    val clazz = Class.forName(PYTHON_SCALAR_FUNCTION_OPERATOR_NAME)
+    val clazz = loadClass(PYTHON_SCALAR_FUNCTION_OPERATOR_NAME)
     val ctor = clazz.getConstructor(
+      classOf[Configuration],
       classOf[Array[PythonFunctionInfo]],
       classOf[RowType],
       classOf[RowType],
       classOf[Array[Int]],
       classOf[Array[Int]])
     ctor.newInstance(
+      config,
       pythonFunctionInfos,
       inputRowTypeInfo.toRowType,
       outputRowTypeInfo.toRowType,
@@ -114,7 +128,8 @@ trait CommonPythonCalc {
   def createPythonOneInputTransformation(
       inputTransform: Transformation[BaseRow],
       calcProgram: RexProgram,
-      name: String): OneInputTransformation[BaseRow, BaseRow] = {
+      name: String,
+      config: Configuration): OneInputTransformation[BaseRow, BaseRow] = {
     val pythonRexCalls = calcProgram.getProjectList
       .map(calcProgram.expandLocalRef)
       .collect { case call: RexCall => call }
@@ -136,6 +151,7 @@ trait CommonPythonCalc {
         pythonRexCalls.map(node => FlinkTypeFactory.toLogicalType(node.getType)): _*)
 
     val pythonOperator = getPythonScalarFunctionOperator(
+      config,
       pythonOperatorInputTypeInfo,
       pythonOperatorResultTyeInfo,
       pythonUdfInputOffsets,
@@ -154,5 +170,5 @@ trait CommonPythonCalc {
 
 object CommonPythonCalc {
   val PYTHON_SCALAR_FUNCTION_OPERATOR_NAME =
-    "org.apache.flink.table.runtime.operators.python.BaseRowPythonScalarFunctionOperator"
+    "org.apache.flink.table.runtime.operators.python.scalar.BaseRowPythonScalarFunctionOperator"
 }

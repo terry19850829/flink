@@ -19,7 +19,7 @@
 package org.apache.flink.core.memory;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.JavaGcCleanerWrapper;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -48,15 +48,15 @@ public class MemoryUtils {
 			unsafeField.setAccessible(true);
 			return (sun.misc.Unsafe) unsafeField.get(null);
 		} catch (SecurityException e) {
-			throw new RuntimeException("Could not access the sun.misc.Unsafe handle, permission denied by security manager.", e);
+			throw new Error("Could not access the sun.misc.Unsafe handle, permission denied by security manager.", e);
 		} catch (NoSuchFieldException e) {
-			throw new RuntimeException("The static handle field in sun.misc.Unsafe was not found.");
+			throw new Error("The static handle field in sun.misc.Unsafe was not found.");
 		} catch (IllegalArgumentException e) {
-			throw new RuntimeException("Bug: Illegal argument reflection access for static field.", e);
+			throw new Error("Bug: Illegal argument reflection access for static field.", e);
 		} catch (IllegalAccessException e) {
-			throw new RuntimeException("Access to sun.misc.Unsafe is forbidden by the runtime.", e);
+			throw new Error("Access to sun.misc.Unsafe is forbidden by the runtime.", e);
 		} catch (Throwable t) {
-			throw new RuntimeException("Unclassified error while trying to access the sun.misc.Unsafe handle.", t);
+			throw new Error("Unclassified error while trying to access the sun.misc.Unsafe handle.", t);
 		}
 	}
 
@@ -71,21 +71,20 @@ public class MemoryUtils {
 			constructor.setAccessible(true);
 			return constructor;
 		} catch (NoSuchMethodException e) {
-			ExceptionUtils.rethrow(
-				e,
-				"The private constructor java.nio.DirectByteBuffer.<init>(long, int) is not available.");
+			throw new Error(
+				"The private constructor java.nio.DirectByteBuffer.<init>(long, int) is not available.",
+				e);
 		} catch (SecurityException e) {
-			ExceptionUtils.rethrow(
-				e,
+			throw new Error(
 				"The private constructor java.nio.DirectByteBuffer.<init>(long, int) is not available, " +
-					"permission denied by security manager");
+					"permission denied by security manager",
+				e);
 		} catch (Throwable t) {
-			ExceptionUtils.rethrow(
-				t,
+			throw new Error(
 				"Unclassified error while trying to access private constructor " +
-					"java.nio.DirectByteBuffer.<init>(long, int).");
+					"java.nio.DirectByteBuffer.<init>(long, int).",
+				t);
 		}
-		throw new RuntimeException("unexpected to avoid returning null");
 	}
 
 	/**
@@ -110,13 +109,7 @@ public class MemoryUtils {
 	 */
 	@SuppressWarnings("UseOfSunClasses")
 	static Runnable createMemoryGcCleaner(Object owner, long address) {
-		// TODO: rollbacked to direct memory because of FLINK-13985
-		// The release call is wrapped with the sun.misc.Cleaner
-		// which will schedule it before GC is run for the owner object (not reachable in user code).
-		// but only if sun.misc.Cleaner::clean has not been already called explicitly by user before.
-		// If sun.misc.Cleaner::clean is called after GC it will not call the release.
-		// This way we guarantee that there will always be a release at some point but only once.
-		return null; // sun.misc.Cleaner.create(owner, () -> releaseUnsafe(address))::clean;
+		return JavaGcCleanerWrapper.create(owner, () -> releaseUnsafe(address));
 	}
 
 	private static void releaseUnsafe(long address) {
@@ -135,8 +128,7 @@ public class MemoryUtils {
 		try {
 			return (ByteBuffer) DIRECT_BUFFER_CONSTRUCTOR.newInstance(address, size);
 		} catch (Throwable t) {
-			ExceptionUtils.rethrow(t, "Failed to wrap unsafe off-heap memory with ByteBuffer");
+			throw new Error("Failed to wrap unsafe off-heap memory with ByteBuffer", t);
 		}
-		throw new RuntimeException("unexpected to avoid returning null");
 	}
 }

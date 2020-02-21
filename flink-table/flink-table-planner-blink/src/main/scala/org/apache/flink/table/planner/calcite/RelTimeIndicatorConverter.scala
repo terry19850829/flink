@@ -185,7 +185,8 @@ class RelTimeIndicatorConverter(rexBuilder: RexBuilder) extends RelShuttle {
         newInput,
         sink.sink,
         sink.sinkName,
-        sink.catalogTable)
+        sink.catalogTable,
+        sink.staticPartitions)
 
     case _ =>
       throw new TableException(s"Unsupported logical operator: ${other.getClass.getSimpleName}")
@@ -641,7 +642,7 @@ class RexTimeIndicatorMaterializer(
 
       // materialize function's result and operands
       case _ if isTimeIndicatorType(updatedCall.getType) =>
-        if (updatedCall.getOperator == FlinkSqlOperatorTable.PROCTIME_MATERIALIZE) {
+        if (updatedCall.getOperator == FlinkSqlOperatorTable.PROCTIME) {
           updatedCall
         } else {
           updatedCall.clone(timestamp(updatedCall.getType.isNullable), materializedOperands)
